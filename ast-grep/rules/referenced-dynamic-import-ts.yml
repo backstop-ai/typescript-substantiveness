@@ -1,0 +1,10 @@
+id: referenced-dynamic-import-ts
+# Q2 support rule (companion to referenced-import-ts): captures the source module of a
+# DYNAMIC import — `await import("./x.js")` / `import("./x.js")` — as $SRC. TS tests
+# commonly import the subject-under-test dynamically AFTER vi.mock() so the mock applies,
+# so a static-import-only rule would miss the subject and spuriously fail the subject-join.
+# `import($SRC)` matches only the call form (dynamic); static imports are import_statement
+# nodes caught by referenced-import-ts. The convert takes $SRC's basename as for a static import.
+language: typescript
+rule:
+  pattern: import($SRC)

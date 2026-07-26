@@ -1,0 +1,49 @@
+name: backstop-ai/typescript-substantiveness
+version: "1.1.0"
+language: typescript
+archetype: enforcement
+description: >
+  TypeScript substantiveness pack — the TS counterpart to backstop/substantiveness
+  (Go). Q1 hollow-test rule: an it()/test() call with no assertion-shaped call in its
+  callback is hollow (RED). The enclosing test name is emitted in the SARIF result
+  `properties.func` (surrounding quotes stripped) so the gate's substantiveness join
+  reads a string-named test verbatim (ISSUE-062). The Q2 referenced-symbol/subject
+  join is satisfied by co-located test layout (samePackage: a test in the subject's
+  directory), idiomatic for TS; a non-co-located referenced-symbol model is future work.
+classification:
+  source:
+    - "packages/schema/src/backstop*.ts"
+    - "packages/core/src/backstop/**/*.ts"
+    - "packages/opencode/src/backstop/**/*.ts"
+  test:
+    - "packages/schema/test/backstop*.test.ts"
+    - "packages/core/test/backstop/**/*.test.ts"
+    - "packages/opencode/test/backstop/**/*.test.ts"
+engines:
+  ast-grep-substantiveness:
+    command: ast-grep scan --json packages/schema/test/backstop-control.test.ts packages/schema/test/backstop-event.test.ts packages/schema/test/backstop-verification.test.ts packages/core/test/backstop packages/opencode/test/backstop
+    input_mode: config-file
+    input_flag: --config
+    scope_kind: project-wide
+    category: opinion
+    gate_type: substantiveness
+    convert: ast-grep/to-sarif.sh
+    provision:
+      tool: ast-grep
+      version: 0.43.0
+content:
+  ruleset:
+    version: 1.0.0
+    rules:
+      - id: hollow-test-go
+        engine: ast-grep-substantiveness
+        rule_path: ast-grep/sgconfig.yml
+        risk_class: correctness
+        claims:
+          - id: sub-hollow-test-ts
+            text: A TS it()/test() with no assertion-shaped call is hollow (RED finding).
+            fixtures:
+              positive:
+                - testdata/fixtures/rules/hollow-test-ts/positive.ts
+              negative:
+                - testdata/fixtures/rules/hollow-test-ts/negative.ts

@@ -1,0 +1,12 @@
+id: all-test-names-ts
+# Q2 support rule: matches EVERY it()/test() declaration (hollow or not), capturing the
+# test-name string $FN. The convert pairs each test with its file's imports to synthesize
+# the referenced-symbol findings the gate's subject-join reads (TS references its subject
+# by importing it, not by a package-qualified call as in Go).
+language: typescript
+rule:
+  kind: call_expression
+  all:
+    - has: { field: function, regex: "(^|\\.)(it|test|effect)$" }
+    - has: { field: arguments, has: { kind: string, pattern: $FN } }
+message: "test $FN"

@@ -1,0 +1,24 @@
+id: hollow-test-ts
+# The gate routes substantiveness findings by the pack-declared `substantiveness_role`
+# property (ISSUE-064), NOT by rule id, so this rule carries its honest TS name. The
+# convert (to-sarif.sh) maps this rule's id -> role `hollow`; core partitions purely on
+# that declared role. (Previously named hollow-test-go as a workaround for core's
+# hardcoded rule-id routing — removed in ISSUE-064.)
+language: typescript
+# Q1 hollow-test rule (TS). An it()/test() call whose callback contains NO
+# assertion-shaped call (expect/assert/...) is hollow -> RED finding. $FN captures
+# the test-name string; the convert strips its surrounding quotes so it matches the
+# gate's MandatedTest.FuncName (the toolchain matcher extracts the unquoted string).
+# The Q2 referenced-symbol/subject join is skipped for co-located tests (samePackage:
+# test dir basename == subject basename), which is idiomatic TS test layout.
+rule:
+  kind: call_expression
+  all:
+    - has: { field: function, regex: "(^|\\.)(it|test|effect)$" }
+    - has: { field: arguments, has: { kind: string, pattern: $FN } }
+    - not:
+        has:
+          stopBy: end
+          kind: call_expression
+          has: { field: function, regex: "expect|assert|should|toBe|toEqual|toThrow" }
+message: "test $FN has no assertions (hollow)"

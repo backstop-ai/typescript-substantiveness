@@ -1,0 +1,11 @@
+id: referenced-import-ts
+# Q2 support rule: captures each ES import's source module string $SRC. The convert takes
+# its basename (./push -> push) as the referenced "symbol", pairing it with every test in
+# the same file. A TS test file references its subject module by importing it.
+language: typescript
+rule:
+  kind: import_statement
+  has:
+    field: source
+    pattern: $SRC
+message: "imports $SRC"
