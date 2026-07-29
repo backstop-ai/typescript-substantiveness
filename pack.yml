@@ -1,5 +1,5 @@
 name: backstop-ai/typescript-substantiveness
-version: "1.1.0"
+version: "1.1.1"
 language: typescript
 archetype: enforcement
 description: >
@@ -10,18 +10,40 @@ description: >
   reads a string-named test verbatim (ISSUE-062). The Q2 referenced-symbol/subject
   join is satisfied by co-located test layout (samePackage: a test in the subject's
   directory), idiomatic for TS; a non-co-located referenced-symbol model is future work.
+  Classification and the engine scan target are PORTABLE (generic per-language globs /
+  repo root) — a pack must never bake a specific consumer's filesystem layout
+  (typescript-substantiveness#1: the 1.1.0 harness-baked paths classified zero files on
+  every other repo, emitting mass false does-not-call violations).
 classification:
+  # Portable per-language classification (mirrors backstop-ai/typescript-toolchain):
+  # any conventional TS/JS repo classifies without pack edits. A consumer's layout is
+  # the consumer's business — the pack declares only what "source" and "test" MEAN.
   source:
-    - "packages/schema/src/backstop*.ts"
-    - "packages/core/src/backstop/**/*.ts"
-    - "packages/opencode/src/backstop/**/*.ts"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.mts"
+    - "**/*.cts"
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.mjs"
+    - "**/*.cjs"
   test:
-    - "packages/schema/test/backstop*.test.ts"
-    - "packages/core/test/backstop/**/*.test.ts"
-    - "packages/opencode/test/backstop/**/*.test.ts"
+    - "**/*.test.ts"
+    - "**/*.test.tsx"
+    - "**/*.test.js"
+    - "**/*.test.jsx"
+    - "**/*.spec.ts"
+    - "**/*.spec.tsx"
+    - "**/*.spec.js"
+    - "**/*.spec.jsx"
+    - "**/__tests__/**"
 engines:
   ast-grep-substantiveness:
-    command: ast-grep scan --json packages/schema/test/backstop-control.test.ts packages/schema/test/backstop-event.test.ts packages/schema/test/backstop-verification.test.ts packages/core/test/backstop packages/opencode/test/backstop
+    # Scan the repo root: ast-grep walks the tree honoring ignore files (node_modules
+    # etc. stay out via .gitignore); the rules only match test constructs. Never bake
+    # consumer paths into the command — scan targets derive from the walk, findings
+    # join through the classification globs above.
+    command: ast-grep scan --json .
     input_mode: config-file
     input_flag: --config
     scope_kind: project-wide
