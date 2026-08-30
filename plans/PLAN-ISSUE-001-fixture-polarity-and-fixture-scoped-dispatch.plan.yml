@@ -1,0 +1,196 @@
+---
+plan_id: PLAN-ISSUE-001
+spec_id: ISSUE-001
+created: "2026-08-30"
+status: implementing
+target_module: TypeScript substantiveness pack phase-3 fixture validation
+test_command: "/bin/sh -c 'cd /Users/bmanson && exec backstop pack test /Users/bmanson/src/projects/backstop-packs/typescript-substantiveness'"
+notes: |
+  Reactive repair for ISSUE-001. Backstop 0.2.0 dispatches this pack's declared ast-grep
+  engine correctly; the generic `semgrep-positive` label is legacy naming and is not
+  causal. Positive means a CLEAN fixture that must not fire; negative means a VIOLATING
+  fixture that must fire.
+
+  INVOCATION. `backstop pack test` invoked from inside the pack directory, or through any
+  relative path, breaks its own macOS sandbox and reports exit-126 convert-script errors
+  for everything. Every RED and GREEN reading in this plan comes from an external working
+  directory against the ABSOLUTE pack path. An exit-126 reading is an invocation anomaly
+  and is never accepted as fixture evidence.
+
+  TWO DEFECTS, NOT ONE. Fixture polarity was inverted, matching the sibling
+  typescript-contracts ISSUE-001 repaired today as 1.4.0. Independently, the engine baked
+  its root scan target into `command: ast-grep scan --json .`; phase 3 appends the fixture
+  path to that same command, so every fixture run walked the whole pack tree with the
+  fixture argument inert, and each fixture saw the other fixture's findings. Relabelling
+  alone cannot pass phase 3 while the violating example remains anywhere in the walked
+  tree, so both had to be fixed together.
+
+  THE CLEAN FIXTURE MUST BE CLEAN OF EVERYTHING. `RunEngine` reports
+  `Passed: len(findings) > 0` across the WHOLE converted SARIF, with no filter to the rule
+  under test, and `ast-grep/to-sarif.sh` synthesizes a `referenced-symbol` result for every
+  (test x import) pair in a file. A substantive test that imported `vitest` would therefore
+  still emit findings and read as a false positive. Both fixtures are import-free: `it` is
+  a vitest/jest global, so this is idiomatic rather than contrived. Making the NEGATIVE
+  import-free is what stops it passing vacuously on a synthesized side-finding.
+
+  GATE PATH MUST NOT REGRESS. The root walk introduced in 1.1.0 -> 1.1.1 for portability is
+  preserved by declaring `project_target: "."`, which Backstop appends only on the gate
+  path for a project-wide engine that is not `package_scoped`. Argv equivalence against the
+  1.1.1 form is proven empirically, not asserted.
+
+  ISSUE-001 carries no CLM identifiers, so this plan defines the local claim ledger:
+    CLM-001: ISSUE-001 and PLAN-ISSUE-001 validate from the minimal repository config, and
+             the unchanged v1.1.1 pack reproducibly yields exactly one causal
+             `semgrep-positive` phase-3 error under Backstop 0.2.0 from an external working
+             directory.
+    CLM-002: The declared fixture pair is discriminating under the pack's real declared
+             engine and converter: the positive produces ZERO converted SARIF results, and
+             the negative produces at least one whose `substantiveness_role` is `hollow`
+             and whose ruleId is the rule under test.
+    CLM-003: Phase-3 fixture runs are scoped to the fixture rather than the pack tree, and
+             the gate path retains the 1.1.1 repo-root walk with an equivalent argv.
+    CLM-004: Pack 1.1.2 / ruleset 1.0.1 passes `backstop pack check` and all six
+             `backstop pack test` phases from an external working directory against the
+             absolute pack path; no tag, push, or consumer lock update is claimed.
+
+  STATUS IS `implementing`, NOT `completed`, DELIBERATELY. Every task below is delivered
+  and its evidence is real, but no INDEPENDENT implementation review has run against this
+  repair, and the sibling typescript-contracts repair took one before it was trusted. The
+  status flips only after that review returns CLEAN. No tag and no push have occurred.
+
+  NOT IN SCOPE, DELIBERATELY LEFT OPEN. The phase-2 `exempt-scope-decision` WARNING
+  predates this repair and survives it: the engine is `scope_kind: project-wide` and
+  declares no `exempt_from_scope_filter`, so its diff-scoped filtering behaviour is an
+  unrecorded default. Recording it either way changes how consumer gates treat findings on
+  files a change never touched. That is a behavioural decision for the founder, not part of
+  a fixture repair, and it is reported rather than silently chosen.
+phases:
+  - id: phase-1
+    name: "Freeze the validation defect"
+    tasks:
+      - id: TASK-000
+        type: setup
+        title: "Establish artifact validation"
+        description: |
+          Add the minimal repository-level Backstop config, with no invented pack
+          dependencies and no enforcement policy, so this repo's own artifacts validate.
+          Then reproduce the failure from an external working directory against the
+          absolute pack path and record WHICH rule and WHICH fixture, rather than accepting
+          the phase summary alone.
+        files:
+          - backstop.yml
+          - issues/ISSUE-001-fixture-polarity-and-fixture-scoped-dispatch.issue.md
+          - plans/PLAN-ISSUE-001-fixture-polarity-and-fixture-scoped-dispatch.plan.yml
+        claims: [CLM-001]
+        depends_on: []
+        evidence: |
+          `backstop pack test <absolute-pack-path>` from /Users/bmanson reported
+          `phase3-fixtures: fail` with exactly one error:
+          `[phase3-fixtures/semgrep-positive] rule hollow-test-go, claim sub-hollow-test-ts:
+          positive fixture triggered the rule (false positive)`, phases 4-6 skipped.
+
+      - id: TASK-001
+        type: test
+        title: "Record substantive phase-3 RED and attribute it to two causes"
+        description: |
+          From an external working directory, run Backstop 0.2.0 against this pack's
+          absolute path and preserve the exact result, naming WHICH rule and WHICH fixture
+          rather than accepting the phase summary alone. Then run the exact argv phase 3
+          builds, by hand, for each fixture, and measure each fixture through its real
+          declared engine AND the shipped converter, so the repair cannot merely hide
+          findings. Confirm the baked `.` makes the fixture argument inert, and confirm the
+          converter synthesizes referenced-symbol results from an import alone.
+          Distinguishing the polarity defect from the dispatch defect is required BEFORE
+          changing anything, because relabelling alone cannot pass phase 3.
+        files:
+          - pack.yml
+          - ast-grep/to-sarif.sh
+          - testdata/fixtures/rules/hollow-test-ts/positive.ts
+          - testdata/fixtures/rules/hollow-test-ts/negative.ts
+        claims: [CLM-001, CLM-002, CLM-003]
+        depends_on: [TASK-000]
+        evidence: |
+          `backstop pack test <absolute-pack-path>` from /Users/bmanson reported
+          `phase3-fixtures: fail` with exactly one error:
+          `[phase3-fixtures/semgrep-positive] rule hollow-test-go, claim sub-hollow-test-ts:
+          positive fixture triggered the rule (false positive)`, phases 4-6 skipped.
+
+          `ast-grep scan --json . --config ast-grep/sgconfig.yml <fixture>` returned
+          findings attributed to BOTH fixture files on either run, with the explicitly named
+          fixture scanned twice, once via `.` and once via its path. Reading
+          pkg/packval/executor.go confirmed `Passed: len(findings) > 0` over the whole
+          converted SARIF with no rule filter, so the negative check was passing on findings
+          that were not necessarily its own.
+
+  - id: phase-2
+    name: "Repair polarity and dispatch"
+    tasks:
+      - id: TASK-002
+        type: implementation
+        title: "Correct fixture polarity, fixture-scope the dispatch, bump versions"
+        description: |
+          Rewrite each fixture's CONTENT in place so it matches the polarity its filename
+          and manifest slot already declare, rather than swapping manifest slots and leaving
+          a file named positive.ts serving as the negative. The positive becomes the
+          substantive test; the negative becomes the hollow one. Both drop their imports so
+          the positive emits nothing at all and the negative can fire only on the hollow
+          rule. Comment WHY the absent import is load-bearing in each file, since a future
+          reader would otherwise restore it as an obvious tidy-up.
+
+          Replace `command: ast-grep scan --json .` with `command: ast-grep scan --json`
+          plus `project_target: "."`. Backstop appends a project_target only on the gate
+          path, for a project-wide engine that does not declare package_scoped, so the gate
+          argv is preserved while phase 3 gets a genuinely fixture-scoped run. Record the
+          reasoning in the manifest so the `.` is not folded back into `command`.
+
+          Bump the pack version 1.1.1 -> 1.1.2 and the ruleset version 1.0.0 -> 1.0.1. The
+          rule and its pattern are untouched, but the fixture evidence backing the claim
+          changed, so the ruleset identity moves even though the rules cohort did not. A
+          patch bump, not the minor the contracts repair took, because no rule pattern
+          changed here.
+        files:
+          - pack.yml
+          - testdata/fixtures/rules/hollow-test-ts/positive.ts
+          - testdata/fixtures/rules/hollow-test-ts/negative.ts
+        claims: [CLM-002, CLM-003, CLM-004]
+        depends_on: [TASK-001]
+        evidence: |
+          Piping each fixture's real ast-grep output through the shipped
+          ast-grep/to-sarif.sh: positive -> `{"count":0,"roles":[],"rules":[]}`; negative ->
+          `{"count":1,"roles":["hollow"],"rules":["hollow-test-ts"]}`. The negative fires on
+          the rule under test, not on a synthesized referenced-symbol result.
+
+          cmd/backstop/pack_gate.go appends binding.ProjectTarget in the default branch for
+          a project-wide engine, and pack_gate_filemode.go returns fileModeNotApplicable for
+          an engine that does not declare PackageScoped, so the default branch is the one
+          taken. Empirically, `ast-grep scan --json . --config <cfg>` and
+          `ast-grep scan --json --config <cfg> .` returned an identical rule-id multiset
+          over the pack tree, so the gate path is unchanged.
+
+          pack.yml declares version "1.1.2" and content.ruleset.version 1.0.1, satisfying
+          the tag-integrity CI workflow's X.Y.Z assertion.
+
+      - id: TASK-003
+        type: verification
+        title: "Six phases green from an external working directory"
+        description: |
+          Run `backstop pack check` and the full `backstop pack test` against the absolute
+          pack path from outside the pack, and require all six phases to pass with
+          non-vacuous fixture dispatch. Re-run the direct per-fixture converter probes.
+          Validate ISSUE-001 and PLAN-ISSUE-001. Report the surviving warning honestly
+          rather than suppressing it. Verification does not authorize a tag or a push.
+        files:
+          - pack.yml
+          - testdata/fixtures/rules/hollow-test-ts/positive.ts
+          - testdata/fixtures/rules/hollow-test-ts/negative.ts
+          - issues/ISSUE-001-fixture-polarity-and-fixture-scoped-dispatch.issue.md
+          - plans/PLAN-ISSUE-001-fixture-polarity-and-fixture-scoped-dispatch.plan.yml
+        claims: [CLM-001, CLM-002, CLM-003, CLM-004]
+        depends_on: [TASK-002]
+        evidence: |
+          `backstop pack test /Users/bmanson/src/projects/backstop-packs/typescript-substantiveness`
+          from /Users/bmanson: status pass, with phase1-structural, phase2-coherence,
+          phase3-fixtures, phase4-archetype, phase5-layer and phase6-risk-class all pass.
+          `backstop pack check` on the same absolute path: status pass. One pre-existing
+          phase-2 WARNING survives, `exempt-scope-decision`, deliberately not addressed here
+          and carried forward in ISSUE-001's Resolution section.

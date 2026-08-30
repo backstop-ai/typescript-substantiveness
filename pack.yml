@@ -1,5 +1,5 @@
 name: backstop-ai/typescript-substantiveness
-version: "1.1.1"
+version: "1.1.2"
 language: typescript
 archetype: enforcement
 description: >
@@ -43,10 +43,21 @@ engines:
     # etc. stay out via .gitignore); the rules only match test constructs. Never bake
     # consumer paths into the command — scan targets derive from the walk, findings
     # join through the classification globs above.
-    command: ast-grep scan --json .
+    #
+    # THE ROOT TARGET IS `project_target`, NOT PART OF `command` (1.1.2). Backstop
+    # appends the root target only on the GATE path, where a project-wide engine with a
+    # declared project_target runs `<command> <inputs> <project_target>` — identical to
+    # the 1.1.1 argv. Phase-3 fixture validation appends the FIXTURE PATH instead, and a
+    # `.` baked into the command survived into that argv too: every fixture run became
+    # `ast-grep scan --json . --config … <fixture>`, a whole-pack-tree walk in which the
+    # fixture argument was inert and each fixture saw the OTHER fixture's findings. That
+    # made the positive check unpassable and the negative check vacuous. Declaring the
+    # target here keeps the gate's walk and gives phase 3 a genuinely fixture-scoped run.
+    command: ast-grep scan --json
     input_mode: config-file
     input_flag: --config
     scope_kind: project-wide
+    project_target: "."
     category: opinion
     gate_type: substantiveness
     convert: ast-grep/to-sarif.sh
@@ -55,7 +66,10 @@ engines:
       version: 0.43.0
 content:
   ruleset:
-    version: 1.0.0
+    # 1.0.1: the rule and its pattern are unchanged; the fixture EVIDENCE backing the
+    # claim below was repaired to Backstop's polarity contract (positive = the clean
+    # example that must not fire, negative = the violating example that must).
+    version: 1.0.1
     rules:
       - id: hollow-test-go
         engine: ast-grep-substantiveness
