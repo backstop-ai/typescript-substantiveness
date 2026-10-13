@@ -6,8 +6,11 @@ issue:
   id: ISSUE-002
   title: "Regexp Test Method Matched As Test Declaration"
   type: bug
-  status: open
+  status: closed
   created: "2026-10-13"
+  closed: "2026-10-13"
+
+resolved-by: cef444c70358
 ---
 
 # Regexp Test Method Matched As Test Declaration
@@ -53,3 +56,7 @@ calls such as `re.test(...)` and `foo.it(...)` no longer match. New claim
 test that asserts on `re.test(...)`, plus a `test.skip`. The negative fixtures are a hollow
 bare `test()` and a hollow `it.effect()`. The positive fixture produces one hollow finding
 under the 1.1.2 rules and zero under the fix. Pack is now 1.1.3 and the ruleset is 1.0.2.
+
+## Resolution
+
+Fixed directly in cef444c70358 (light path: no plan). Both rules now accept the dotted callee form only when the receiver is `it` or `test`; new receiver fixtures prove a RegExp `.test(...)` inside an assertion is not a test, while hollow `test()` and `it.effect()` are still reported. `backstop pack test` passes all phases. Released in v1.1.3.
