@@ -11,10 +11,15 @@ language: typescript
 # gate's MandatedTest.FuncName (the toolchain matcher extracts the unquoted string).
 # The Q2 referenced-symbol/subject join is skipped for co-located tests (samePackage:
 # test dir basename == subject basename), which is idiomatic TS test layout.
+# Callee match (ISSUE-002): a bare `it`/`test`/`effect`, or the dotted form ONLY when
+# the receiver is itself `it`/`test` (e.g. `it.effect(...)` from @effect/vitest). The
+# 1.1.2 regex `(^|\.)(it|test|effect)$` accepted ANY receiver, so `re.test('x')`
+# (RegExp.prototype.test) was read as a test declaration named by its string argument.
+# Modifiers such as `test.skip`/`it.only` stay unmatched, as before.
 rule:
   kind: call_expression
   all:
-    - has: { field: function, regex: "(^|\\.)(it|test|effect)$" }
+    - has: { field: function, regex: "^(it|test|effect)$|^(it|test)\\.(it|test|effect)$" }
     - has: { field: arguments, has: { kind: string, pattern: $FN } }
     - not:
         has:

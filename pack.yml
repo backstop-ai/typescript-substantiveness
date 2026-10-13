@@ -1,5 +1,5 @@
 name: backstop-ai/typescript-substantiveness
-version: "1.1.2"
+version: "1.1.3"
 language: typescript
 archetype: enforcement
 description: >
@@ -69,7 +69,10 @@ content:
     # 1.0.1: the rule and its pattern are unchanged; the fixture EVIDENCE backing the
     # claim below was repaired to Backstop's polarity contract (positive = the clean
     # example that must not fire, negative = the violating example that must).
-    version: 1.0.1
+    # 1.0.2 (ISSUE-002): the test-declaration callee match was narrowed so a dotted
+    # callee counts only when its receiver is `it`/`test` — `re.test('x')`
+    # (RegExp.prototype.test) is no longer read as a test declaration.
+    version: 1.0.2
     rules:
       - id: hollow-test-go
         engine: ast-grep-substantiveness
@@ -83,3 +86,14 @@ content:
                 - testdata/fixtures/rules/hollow-test-ts/positive.ts
               negative:
                 - testdata/fixtures/rules/hollow-test-ts/negative.ts
+          - id: sub-test-callee-receiver-ts
+            text: >-
+              Only a bare it()/test()/effect() or an it./test.-receiver dotted call (e.g.
+              it.effect()) declares a test; another receiver's .test() such as
+              RegExp.prototype.test is not a test declaration and is never reported.
+            fixtures:
+              positive:
+                - testdata/fixtures/rules/test-callee-receiver/positive-regexp-test-method.ts
+              negative:
+                - testdata/fixtures/rules/test-callee-receiver/negative-hollow-test.ts
+                - testdata/fixtures/rules/test-callee-receiver/negative-it-effect-hollow.ts
