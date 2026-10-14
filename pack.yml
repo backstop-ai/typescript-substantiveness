@@ -1,5 +1,5 @@
 name: backstop-ai/typescript-substantiveness
-version: "1.1.3"
+version: "1.1.4"
 language: typescript
 archetype: enforcement
 description: >
@@ -9,7 +9,9 @@ description: >
   `properties.func` (surrounding quotes stripped) so the gate's substantiveness join
   reads a string-named test verbatim (ISSUE-062). The Q2 referenced-symbol/subject
   join is satisfied by co-located test layout (samePackage: a test in the subject's
-  directory), idiomatic for TS; a non-co-located referenced-symbol model is future work.
+  directory), idiomatic for TS, or by a referenced symbol: each test references its file's
+  import module names AND the value names those imports bind (ISSUE-003), so a test in a
+  separate directory that imports `{ Store }` joins a spec whose subject is `Store`.
   Classification and the engine scan target are PORTABLE (generic per-language globs /
   repo root) — a pack must never bake a specific consumer's filesystem layout
   (typescript-substantiveness#1: the 1.1.0 harness-baked paths classified zero files on
@@ -72,7 +74,9 @@ content:
     # 1.0.2 (ISSUE-002): the test-declaration callee match was narrowed so a dotted
     # callee counts only when its receiver is `it`/`test` — `re.test('x')`
     # (RegExp.prototype.test) is no longer read as a test declaration.
-    version: 1.0.2
+    # 1.0.3 (ISSUE-003): new support rule referenced-import-binding-ts; the converter emits
+    # import binding names (type-only imports excluded) as referenced symbols.
+    version: 1.0.3
     rules:
       - id: hollow-test-go
         engine: ast-grep-substantiveness
@@ -97,3 +101,36 @@ content:
               negative:
                 - testdata/fixtures/rules/test-callee-receiver/negative-hollow-test.ts
                 - testdata/fixtures/rules/test-callee-receiver/negative-it-effect-hollow.ts
+      # ISSUE-003: the Q2 referenced-symbol synthesis. This entry declares NO rule_path, on
+      # purpose. Phase 3's engine verdict is `len(findings) > 0` over the whole converted
+      # SARIF, and any fixture with a test and an import yields referenced-symbol results,
+      # so that verdict cannot tell `Store` from `store`. Without a rule source, phase 3
+      # skips the engine run for this rule and runs only the validator, which drives the
+      # REAL engine and converter on each fixture and checks the exact symbols the fixture
+      # declares (`// expect-symbol:` / `// expect-no-symbol:`). The gate path is
+      # unaffected: a config-file engine takes its --config from the first rule that
+      # declares a rule_path (hollow-test-go above) and skips rules without one.
+      - id: referenced-import-binding-ts
+        engine: ast-grep-substantiveness
+        risk_class: correctness
+        validator: testdata/validators/referenced-symbols.sh
+        claims:
+          - id: sub-referenced-import-binding-ts
+            text: >-
+              Each test references the value bindings its file imports, in addition to the
+              module-path names: named specifiers (imported name and local alias), default
+              and namespace imports, and dynamic-import declarations
+              (`const ns = await import(...)`, `const { A, B: C } = await import(...)`).
+              Type-only imports (`import type`, inline `type` specifiers) emit no binding
+              name, because a test cannot call a type.
+            fixtures:
+              positive:
+                - testdata/fixtures/rules/referenced-import-binding/positive-named-import.ts
+                - testdata/fixtures/rules/referenced-import-binding/positive-aliased-import.ts
+                - testdata/fixtures/rules/referenced-import-binding/positive-default-import.ts
+                - testdata/fixtures/rules/referenced-import-binding/positive-namespace-import.ts
+                - testdata/fixtures/rules/referenced-import-binding/positive-dynamic-import.ts
+                - testdata/fixtures/rules/referenced-import-binding/positive-type-only-import.ts
+              negative:
+                - testdata/fixtures/rules/referenced-import-binding/negative-subject-not-imported.ts
+                - testdata/fixtures/rules/referenced-import-binding/negative-type-only-subject.ts

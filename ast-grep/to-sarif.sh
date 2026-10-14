@@ -24,6 +24,14 @@
 #                       package name differs from the directory name. A test whose file does
 #                       NOT import its subject has no matching symbol and correctly fails.
 #
+#                       ISSUE-003: `referenced-import-binding-ts` also yields each NAME the
+#                       file's imports bind (named specifier + alias, default, namespace,
+#                       dynamic-import declarations; type-only imports excluded), emitted as
+#                       further symbols beside the module-path names. A spec whose subject
+#                       is a symbol (`subject: Store`) then joins a test that does
+#                       `import { Store } from '../src/store.js'`, wherever the test lives.
+#                       Symbols are de-duplicated per (test, symbol).
+#
 # ast-grep reports 0-indexed lines; SARIF startLine is 1-indexed, so we add 1. A stderr
 # banner exercises clean-stdout capture.
 echo "ast-grep to-sarif: transforming findings" >&2
@@ -63,9 +71,15 @@ jq '
   | ( [ .[] | select(.ruleId == "referenced-import-ts" or .ruleId == "referenced-dynamic-import-ts")
         | .metaVariables.single.SRC.text as $source
         | { file, symbols: ([$source | modname] + ($source | subjectname | subjectaliases) | unique) } ] ) as $imports
+  # ISSUE-003: import binding names (Store, an alias, a default/namespace name, ...).
+  | ( [ .[] | select(.ruleId == "referenced-import-binding-ts") | { file, symbols: [ .text ] } ] ) as $bindings
 
-  # Q2 referenced-symbol findings: cross-product tests x imports within each file.
-  | ( [ $tests[] as $t | $imports[] | select(.file == $t.file) | .symbols[] | {
+  # per-file union of module-path names and binding names, de-duplicated.
+  | ( ($imports + $bindings) | group_by(.file)
+      | map({ file: .[0].file, symbols: ([ .[].symbols[] ] | unique) }) ) as $byfile
+
+  # Q2 referenced-symbol findings: cross-product tests x referenced symbols within each file.
+  | ( [ $tests[] as $t | $byfile[] | select(.file == $t.file) | .symbols[] | {
           ruleId: "referenced-import-ts", level: "note",
           message: { text: ("test " + $t.fn + " references " + .) },
           locations: loc($t.file; $t.line),

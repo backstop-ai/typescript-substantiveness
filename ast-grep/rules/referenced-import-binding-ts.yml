@@ -1,0 +1,66 @@
+id: referenced-import-binding-ts
+# Q2 support rule (ISSUE-003): matches each NAME an import binds, so the convert can emit it
+# as a referenced symbol beside the module-path names from referenced-import-ts. A spec may
+# name a symbol as its subject (`subject: Store`); the gate's join is an exact string match,
+# so a test that imports `{ Store }` from '../src/store.js' must reference `Store`, not only
+# `store`. Each match is one identifier node; the convert reads its text.
+#
+#   import { A as B }        -> A, B   (exported name AND local alias)
+#   import D from ...        -> D      (default)
+#   import * as ns from ...  -> ns     (namespace)
+#   const ns = await import(...)                     -> ns
+#   const { A, B: C, D = 1, ...r } = await import(...) -> A, B, C, D, r
+#
+# TYPE-ONLY IMPORTS ARE EXCLUDED: `import type ...` and inline `import { type T }`. They are
+# erased at compile time and cannot be called, so counting them would let a test that only
+# annotates with its subject's type pass the "calls its subject" join.
+#
+# The `type` keyword is an ANONYMOUS child token, which `kind` cannot select. It is found by
+# its text, excluding the two NAMED nodes whose text can also be `type`: an identifier
+# (`import { type as t }` imports a value named `type`) and an import_clause
+# (`import type from ...` is a default import named `type`).
+language: typescript
+utils:
+  type-keyword:
+    regex: "^type$"
+    not: { any: [ { kind: identifier }, { kind: import_clause } ] }
+  dynamic-import-value:
+    any:
+      - pattern: import($SRC)
+      - pattern: await import($SRC)
+  dynamic-import-declarator:
+    kind: variable_declarator
+    has: { field: value, matches: dynamic-import-value }
+rule:
+  any:
+    # Static imports: named specifier (name + alias), default, namespace.
+    - kind: identifier
+      any:
+        - inside: { kind: import_specifier, not: { has: { matches: type-keyword } } }
+        - inside: { kind: import_clause }
+        - inside: { kind: namespace_import }
+      not:
+        inside: { kind: import_statement, stopBy: end, has: { matches: type-keyword } }
+    # Dynamic import bound to a single name.
+    - kind: identifier
+      inside: { field: name, matches: dynamic-import-declarator }
+    # Dynamic import destructured. Only binding positions match, never a default VALUE
+    # (`{ A = fallback }` emits A, not fallback).
+    - all:
+        - any:
+            - kind: shorthand_property_identifier_pattern
+              any:
+                - inside: { kind: object_pattern }
+                - inside: { kind: object_assignment_pattern }
+            - kind: property_identifier
+              inside: { kind: pair_pattern }
+            - kind: identifier
+              any:
+                - inside: { kind: pair_pattern }
+                - inside: { kind: assignment_pattern, field: left, inside: { kind: pair_pattern } }
+                - inside: { kind: rest_pattern }
+        - inside:
+            kind: object_pattern
+            stopBy: end
+            inside: { field: name, matches: dynamic-import-declarator }
+message: "binds import name"
