@@ -120,7 +120,8 @@ content:
               Each test references the value bindings its file imports, in addition to the
               module-path names: named specifiers (imported name and local alias), default
               and namespace imports, and dynamic-import declarations
-              (`const ns = await import(...)`, `const { A, B: C } = await import(...)`).
+              (`const ns = await import(...)`, unawaited `const p = import(...)`,
+              `const { A, B: C } = await import(...)`).
               Type-only imports (`import type`, inline `type` specifiers) emit no binding
               name, because a test cannot call a type.
             fixtures:
@@ -131,6 +132,8 @@ content:
                 - testdata/fixtures/rules/referenced-import-binding/positive-namespace-import.ts
                 - testdata/fixtures/rules/referenced-import-binding/positive-dynamic-import.ts
                 - testdata/fixtures/rules/referenced-import-binding/positive-type-only-import.ts
+                - testdata/fixtures/rules/referenced-import-binding/positive-type-named-bindings.ts
               negative:
                 - testdata/fixtures/rules/referenced-import-binding/negative-subject-not-imported.ts
                 - testdata/fixtures/rules/referenced-import-binding/negative-type-only-subject.ts
+                - testdata/fixtures/rules/referenced-import-binding/negative-forbidden-value-import.ts

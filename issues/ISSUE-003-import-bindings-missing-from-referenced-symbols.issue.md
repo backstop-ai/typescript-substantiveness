@@ -58,7 +58,8 @@ mass of false "test function X does not call package Store" violations.
   - default imports (`import A from ...`);
   - namespace imports (`import * as ns from ...`);
   - dynamic imports where the binding is syntactically visible:
-    `const ns = await import(...)` and `const { A, B: C } = await import(...)`.
+    `const ns = await import(...)`, an unawaited `const p = import(...)`, and
+    `const { A, B: C } = await import(...)`.
 - Type-only imports do not produce binding names (see Decision below).
 - The existing module-path names (`modname`, `subjectname` and its aliases) are still
   emitted, so specs that name a module subject keep joining as before.

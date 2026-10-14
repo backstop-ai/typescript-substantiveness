@@ -13,7 +13,13 @@
 #
 # Exit 0 means every expectation holds (a positive fixture). Any unmet expectation exits 1
 # (a negative fixture must do this). A fixture with no tests or no expectations exits 2,
-# so a typo can never pass vacuously.
+# so a typo can never make a POSITIVE pass vacuously.
+#
+# THE GUARANTEE IS ONE-SIDED. Core's phase-3 negative seam accepts ANY non-zero exit, so a
+# negative fixture is also "triggered" by exit 2 (vacuous) or by a failure to run at all
+# (ast-grep or jq missing, a converter crash). Phase 3 alone cannot tell those from a real
+# unmet expectation. Each negative fixture's verdict line (MISSING:/UNEXPECTED:) must be
+# confirmed by running this script on it directly.
 set -eu
 
 if [ "$#" -ne 1 ]; then
