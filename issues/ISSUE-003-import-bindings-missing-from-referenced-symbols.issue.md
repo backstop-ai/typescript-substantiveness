@@ -6,8 +6,11 @@ issue:
   id: ISSUE-003
   title: "Import Bindings Missing From Referenced Symbols"
   type: bug
-  status: open
+  status: closed
   created: "2026-10-14"
+  closed: "2026-10-14"
+
+resolved-by: b02c07e124e7
 ---
 
 # Import Bindings Missing From Referenced Symbols
@@ -87,3 +90,20 @@ This issue covers the new import-binding ast-grep rule, the converter's referenc
 synthesis, the fixtures and validator that prove the behavior, and the pack and ruleset
 version fields. It does not change the hollow-test rule, the classification globs, the
 `subjectaliases` table, or Backstop core.
+
+## Resolution
+
+Fixed directly in b02c07e124e7 (light path: no plan). New support rule
+`referenced-import-binding-ts` matches each name an import binds, and `ast-grep/to-sarif.sh`
+emits those names as referenced symbols beside the unchanged module-path names. Output is
+de-duplicated per (test, symbol), and every (test, symbol) pair the 1.1.3 converter emitted
+is still emitted. Type-only imports emit no binding name.
+
+New claim `sub-referenced-import-binding-ts` is checked by
+`testdata/validators/referenced-symbols.sh`. The validator runs the real engine and
+converter on each fixture and asserts the exact `// expect-symbol:` and
+`// expect-no-symbol:` lines the fixture declares. Under 1.1.3 all six positive fixtures
+failed `backstop pack test`. Under the fix, all six phases pass and `backstop pack check`
+passes. Listing a positive fixture as a negative fails phase 3, which shows the validator
+discriminates inside the sandbox. Pack is 1.1.4 and the ruleset is 1.0.3. The
+`subjectaliases` observation above remains open.
